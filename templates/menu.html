@@ -1,0 +1,24 @@
+<!-- menu.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메뉴판</title>
+</head>
+<body>
+    <h1>메뉴판</h1>
+    <ul>
+        {% for item in menu %}
+            <li>
+                <strong>{{ item.name }}</strong> - {{ item.price }}원<br>
+                {{ item.description }}<br>
+                <img src="{{ url_for('static', filename='images/' + item.image) }}" alt="{{ item.name }}" height="100">
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('add_menu') }}">메뉴 추가</a>
+    <br>
+    <a href="{{ url_for('index') }}">뒤로 가기</a>
+</body>
+</html>

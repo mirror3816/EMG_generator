@@ -1,0 +1,15 @@
+<!-- qrcode.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR 코드</title>
+</head>
+<body>
+    <h1>QR 코드</h1>
+    <img src="{{ url_for('static', filename='images/qrcode.png') }}" alt="QR Code">
+    <p>QR 코드를 스캔하여 메뉴판으로 이동하세요.</p>
+    <a href="{{ url }}">메뉴판 바로 가기</a>
+</body>
+</html>
