@@ -88,6 +88,15 @@ def generate_qrcode():
 
     return render_template('qrcode.html', url=url)
 
+@app.route('/delete_menu/<int:menu_index>', methods=['GET', 'POST'])
+def delete_menu(menu_index):
+    if request.method == 'POST':
+        del menu_items[menu_index]
+        save_menu_to_file()
+        return redirect(url_for('view_menu'))
+
+    return render_template('delete_menu.html', menu_index=menu_index, menu_item=menu_items[menu_index])
+
 if __name__ == '__main__':
     # 애플리케이션이 실행될 때 저장된 메뉴 데이터를 불러옵니다.
     menu_items = load_menu_from_file()

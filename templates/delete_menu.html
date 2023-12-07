@@ -1,0 +1,23 @@
+<!-- delete_menu.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메뉴 삭제</title>
+</head>
+<body>
+    <h1>메뉴 삭제</h1>
+    <p>다음 메뉴를 삭제하시겠습니까?</p>
+    <ul>
+        <li><strong>{{ menu_item.name }}</strong></li>
+        <li>가격: {{ menu_item.price }}원</li>
+        <li>설명: {{ menu_item.description }}</li>
+        <li><img src="{{ url_for('static', filename='uploads/' + menu_item.image) }}" alt="{{ menu_item.name }}" height="100"></li>
+    </ul>
+    <form method="POST" action="{{ url_for('delete_menu', menu_index=menu_index) }}">
+        <button type="submit">삭제</button>
+    </form>
+    <a href="{{ url_for('view_menu') }}">취소</a>
+</body>
+</html>

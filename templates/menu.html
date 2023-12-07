@@ -13,7 +13,7 @@
             <li>
                 <strong>{{ item.name }}</strong> - {{ item.price }}원<br>
                 {{ item.description }}<br>
-                <img src="{{ url_for('static', filename='images/' + item.image) }}" alt="{{ item.name }}" height="100">
+                <img src="{{ url_for('uploads', filename=item.image) }}" alt="{{ item.name }}" height="100">
             </li>
         {% endfor %}
     </ul>
