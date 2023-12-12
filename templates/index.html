@@ -6,18 +6,6 @@
     <title>메뉴판</title>
 </head>
 <body>
-    <h1>메뉴판</h1>
-    <ul>
-        {% for item in menu %}
-            <li>
-                <strong>{{ item.name }}</strong> - {{ item.price }}원<br>
-                {{ item.description }}<br>
-                <img src="{{ url_for('static', filename='images/' + item.image) }}" alt="{{ item.name }}" height="100">
-            </li>
-        {% endfor %}
-    </ul>
-<!-- index.html -->
-<a href="{{ url_for('add_menu') }}">메뉴 추가</a>
 
 </body>
 </html>
