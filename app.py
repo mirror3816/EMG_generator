@@ -1,169 +1,138 @@
 import json
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
-import qrcode
 import os
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, redirect, url_for
+from flask_socketio import SocketIO
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # 비밀키를 안전한 방법으로 설정하세요.
+socketio = SocketIO(app)
 
-# 가상의 사용자 데이터
-users = {}
+class MenuItem:
+    def __init__(self, name, description, price, image_filename):
+        self.name = name
+        self.description = description
+        self.price = price
+        self.image_filename = image_filename
 
-USERS_FILE = 'users.json'
+# JSON 파일 경로
+orders_file_path = 'orders.json'
+menu_file_path = 'menu.json'
 
-def save_users_to_file(users):
-    with open(USERS_FILE, 'w') as file:
-        json.dump(users, file)
-
-def load_users_from_file():
+# 메뉴 초기 데이터 로드
+def load_menu():
     try:
-        with open(USERS_FILE, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
+        with open(menu_file_path, 'r', encoding='utf-8') as file:
+            menu_items = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        menu_items = []
+    return [MenuItem(**item) for item in menu_items]
 
-# 가상의 메뉴 데이터
-menu_items = []
-
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def save_menu_to_file():
-    with open('menu_data.json', 'w') as file:
-        json.dump(menu_items, file)
-
-def load_menu_from_file():
+# 주문 내역 초기 데이터 로드
+def load_orders():
     try:
-        with open('menu_data.json', 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return []
+        with open(orders_file_path, 'r', encoding='utf-8') as file:
+            orders = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        orders = []
+    return orders
+
+menu_items = load_menu()
+all_orders = load_orders()
 
 @app.route('/')
-def index():
-    return render_template('login.html')
+def home():
+    return render_template('index.html', menu_items=menu_items)
 
-@app.route('/login', methods=['POST'])
-def login():
-    username = request.form['username']
-    password = request.form['password']
+@app.route('/menu/<table_number>', methods=['GET', 'POST'])
+def menu(table_number):
+    if request.method == 'POST':
+        # 주문 로직 처리
+        order_data = request.form.get('order_data')
 
-    users = load_users_from_file()
+        # 주문 내역 저장
+        all_orders.append({'table_number': table_number, 'order_data': order_data})
 
-    if not users:
-        # 최초 로그인 시 회원가입 처리
-        users[username] = password
-        save_users_to_file(users)
+        # 주문 내역을 JSON 파일에 저장
+        with open('orders.json', 'w') as file:
+            json.dump(all_orders, file)
 
-        session['username'] = username
-        flash('처음 로그인하여 회원 가입이 완료되었습니다.', 'success')
-        return redirect(url_for('menu'))
-    elif username in users and users[username] == password:
-        session['username'] = username
-        flash('로그인 성공!', 'success')
-        return redirect(url_for('menu'))
-    else:
-        flash('아이디 또는 비밀번호가 올바르지 않습니다.', 'error')
-        return redirect(url_for('index'))
+        # 실시간으로 주문 내역을 클라이언트에게 알림
+        socketio.emit('order_update', {'table_number': table_number, 'order_data': order_data}, namespace='/orders')
 
-@app.route('/menu')
-def menu():
-    if 'username' in session:
-        return render_template('menu.html', menu=menu_items)
-    else:
-        flash('로그인이 필요합니다.', 'error')
-        return redirect(url_for('index'))
+    # 메뉴 데이터를 템플릿으로 전달
+    return render_template('menu.html', table_number=table_number, menu_items=menu_items)
 
-@app.route('/add_menu', methods=['GET', 'POST'])
-def add_menu():
-    if 'username' in session:
-        if request.method == 'POST':
-            name = request.form['name']
-            price = int(request.form['price'])
-            description = request.form['description']
 
-            # 파일 업로드 처리
-            if 'image' in request.files:
-                file = request.files['image']
-                if file and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                else:
-                    flash('이미지 파일이 올바르지 않습니다.', 'error')
+# 주문 내역 페이지
+@app.route('/orders', methods=['GET', 'POST'])
+def orders():
+    return render_template('orders.html', all_orders=all_orders)
 
-            new_menu = {"name": name, "price": price, "description": description, "image": filename}
-            menu_items.append(new_menu)
+# 주문 내역 삭제
+@app.route('/delete_order/<table_number>', methods=['POST'])
+def delete_order(table_number):
+    # Delete orders associated with the table
+    all_orders[:] = [order for order in all_orders if order['table_number'] != table_number]
 
-            save_menu_to_file()
+    # Notify clients about the order deletion
+    socketio.emit('order_delete', {'table_number': table_number}, namespace='/orders')
 
-            return redirect(url_for('menu'))
+    return redirect(url_for('orders'))
 
-        return render_template('add_menu.html')
-    else:
-        flash('로그인이 필요합니다.', 'error')
-        return redirect(url_for('index'))
+# WebSocket 네임스페이스
+@socketio.on('connect', namespace='/orders')
+def handle_connect():
+    print('Client connected to orders namespace')
 
-@app.route('/generate_qrcode')
-def generate_qrcode():
-    if 'username' in session:
-        # QR 코드에 포함될 URL 생성
-        url = request.url_root + 'menu'
+@app.route('/menu_update', methods=['GET', 'POST'])
+def menu_update():
+    if request.method == 'POST':
+        # 새로운 메뉴 항목 추가
+        name = request.form.get('name')
+        description = request.form.get('description')
+        price = float(request.form.get('price'))
 
-        # QR 코드 생성
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(url)
-        qr.make(fit=True)
+        # 이미지 파일 저장
+        image_file = request.files['image']
+        image_filename = image_file.filename if image_file else None
+        if image_filename:
+            image_path = os.path.join('static', 'images', image_filename)
+            image_file.save(image_path)
 
-        # QR 코드 이미지 생성
-        img = qr.make_image(fill_color="black", back_color="white")
+        new_item = MenuItem(name, description, price, image_filename)
+        menu_items.append(new_item)
 
-        # 이미지 저장
-        img.save('static/images/qrcode.png')
+        # 메뉴 항목을 JSON 파일에 저장
+        save_menu()
 
-        return render_template('qrcode.html', url=url)
-    else:
-        flash('로그인이 필요합니다.', 'error')
-        return redirect(url_for('index'))
+        # 리디렉션을 통해 새로고침 시 "페이지 없음" 오류 방지
+        return redirect(url_for('menu_update'))
 
-@app.route('/delete_menu/<int:menu_index>', methods=['GET', 'POST'])
-def delete_menu(menu_index):
-    if 'username' in session:
-        if request.method == 'POST':
-            del menu_items[menu_index]
-            save_menu_to_file()
-            return redirect(url_for('menu'))
+    return render_template('menu_update.html', menu_items=menu_items)
 
-        return render_template('delete_menu.html', menu_index=menu_index, menu_item=menu_items[menu_index])
-    else:
-        flash('로그인이 필요합니다.', 'error')
-        return redirect(url_for('index'))
+# JSON 파일에 주문 내역 저장
+def save_orders():
+    with open(orders_file_path, 'w') as file:
+        json.dump(all_orders, file)
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# JSON 파일에 메뉴 저장
+def save_menu():
+    menu_data = [{'name': item.name, 'description': item.description, 'price': item.price, 'image_filename': item.image_filename} for item in menu_items]
+    with open(menu_file_path, 'w') as file:
+        json.dump(menu_data, file)
 
-@app.route('/logout')
-def logout():
-    session.pop('username', None)
-    flash('로그아웃 되었습니다.', 'success')
-    return redirect(url_for('index'))
+@app.route('/delete_menu_item/<int:index>', methods=['DELETE'])
+def delete_menu_item(index):
+    if 0 <= index < len(menu_items):
+        del menu_items[index]
+        # 메뉴 항목을 JSON 파일에 저장
+        save_menu()
+        return 'Menu item deleted successfully', 200
+    return 'Invalid index', 404
+
+@app.route('/qrcode')
+def qrcode():
+    return render_template('qrcode.html')
 
 if __name__ == '__main__':
-    # 애플리케이션이 실행될 때 저장된 메뉴 데이터를 불러옵니다.
-    menu_items = load_menu_from_file()
-
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-    
-    app.run(debug=True)
+    # 애플리케이션 실행
+    socketio.run(app, debug=True)

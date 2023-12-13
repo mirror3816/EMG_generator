@@ -3,13 +3,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR 코드</title>
+    <title>QR Code Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
 </head>
 <body>
-    <h1>QR 코드</h1>
-    <img src="{{ url_for('static', filename='images/qrcode.png') }}" alt="QR Code">
-    <p>QR 코드를 스캔하여 메뉴판으로 이동하세요.</p>
-    <a href="{{ url }}">메뉴판 바로 가기</a>
+    <h1>QR Code Generator</h1>
+
+    <label for="tableNumber">Enter Table Number:</label>
+    <input type="text" id="tableNumber" placeholder="Table Number">
+    <button onclick="generateQRCode()">Generate QR Code</button>
+
+    <div id="qrcode"></div>
+    <button onclick="downloadQRCode()">Download QR Code</button>
+
+    <script type="text/javascript">
+        function generateQRCode() {
+            var tableNumber = document.getElementById('tableNumber').value;
+            var menuPageURL = getMenuPageURL(tableNumber);
+
+            // Clear previous QR code
+            document.getElementById('qrcode').innerHTML = '';
+
+            // Generate new QR code
+            var qrcode = new QRCode(document.getElementById('qrcode'), {
+                text: menuPageURL,
+                width: 128,
+                height: 128
+            });
+        }
+
+        function getMenuPageURL(tableNumber) {
+            // Modify this function to return the actual URL of your menu page
+            return 'http://127.0.0.1:5000/menu/' + tableNumber;
+        }
+
+        function downloadQRCode() {
+            // Get the QR code image as a data URL
+            var qrCodeDataURL = document.getElementById('qrcode').getElementsByTagName('img')[0].src;
+
+            // Create a temporary link element
+            var link = document.createElement('a');
+            link.href = qrCodeDataURL;
+            link.download = 'qrcode.png';
+
+            // Append the link to the document and trigger a click event to download the image
+            document.body.appendChild(link);
+            link.click();
+
+            // Remove the link from the document
+            document.body.removeChild(link);
+        }
+    </script>
 </body>
 </html>

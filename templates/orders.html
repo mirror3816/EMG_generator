@@ -1,0 +1,78 @@
+<!-- orders.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+</head>
+<body>
+    <h1>All Orders</h1>
+
+    <!-- 주문 내역 목록 -->
+    <ul id="all-orders-list">
+        {% for order in all_orders %}
+            <li>
+                Table {{ order.table_number }}: {{ order.order_data }}
+                <button class="delete-order-btn" data-table="{{ order.table_number }}">Delete Order</button>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <script type="text/javascript">
+        var socket = io.connect('http://' + document.domain + ':' + location.port + '/orders');
+
+        socket.on('order_update', function(data) {
+            console.log('Order Update:', data);
+            updateOrderList(data);
+        });
+
+        socket.on('order_delete', function(data) {
+            console.log('Order Delete:', data);
+            deleteOrder(data);
+        });
+
+        function updateOrderList(data) {
+            // 주문 내역 목록에 추가
+            var newItem = document.createElement('li');
+            newItem.textContent = 'Table ' + data.table_number + ': ' + data.order_data;
+            var allOrdersList = document.getElementById('all-orders-list');
+            allOrdersList.appendChild(newItem);
+
+            // Create a delete button dynamically
+            var deleteButton = document.createElement('button');
+            deleteButton.className = 'delete-order-btn';
+            deleteButton.textContent = 'Delete Order';
+            deleteButton.setAttribute('data-table', data.table_number);
+
+            // Append the button to the list item
+            newItem.appendChild(deleteButton);
+        }
+
+        function deleteOrder(data) {
+            // 주문 내역이 삭제되면 처리할 코드
+            var allOrdersList = document.getElementById('all-orders-list');
+            var items = allOrdersList.getElementsByTagName('li');
+
+            // Iterate through items and remove the ones matching the deleted table
+            for (var i = items.length - 1; i >= 0; i--) {
+                var itemText = items[i].textContent;
+                if (itemText.includes('Table ' + data.table_number)) {
+                    allOrdersList.removeChild(items[i]);
+                }
+            }
+        }
+
+        // Add an event listener to handle button clicks
+        document.addEventListener('click', function(event) {
+            if (event.target && event.target.className == 'delete-order-btn') {
+                var tableNumber = event.target.getAttribute('data-table');
+                // Call the delete_order route with the table number
+                fetch('/delete_order/' + tableNumber, { method: 'POST' });
+            }
+        });
+    </script>
+</body>
+</html>

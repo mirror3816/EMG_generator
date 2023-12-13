@@ -2,10 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>메뉴판</title>
+    <title>Easy Menu Generator</title>
 </head>
 <body>
+    <h2>Easy Menu Generator</h2>
 
+    <form action="/menu" method="get">
+        <label for="tableNumber">Enter Table Number: </label>
+        <input type="text" id="tableNumber" name="tableNumber" required>
+    </form>
+
+    <br>
+
+    <!-- Updated link with table number in the URL -->
+    <p><a href="/menu/{{ tableNumber }}">Go to Menu</a></p>
+    <p><a href="/menu_update">Go to Menu Update</a></p>
+    <p><a href="/orders">Go to Orders</a></p>
+    <p><a href="/qrcode">Go to QR Code Generator</a></p>
 </body>
 </html>
